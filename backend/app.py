@@ -1,11 +1,17 @@
 import random
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 # Import our simulation components
 from simulation.order_book import OrderBook
 from simulation.matching_engine import MatchingEngine
 from simulation.agents import NoiseTrader, MarketTaker, LiquidityProvider
+
+# --- Pydantic Model for Request Body ---
+class AgentConfig(BaseModel):
+    agent_type: str
+    count: int = 1
 
 # --- Global Simulation State ---
 order_book = OrderBook()
@@ -25,12 +31,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# --- CORS (Cross-Origin Resource Sharing) ---
-# This allows our React frontend (running on localhost:3000)
-# to make requests to our Python backend (running on localhost:8000).
-origins = [
-    "http://localhost:3000",
-]
+# --- CORS Middleware ---
+origins = ["http://localhost:3000"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -43,41 +45,53 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    """A simple endpoint to check if the API is running."""
     return {"status": "ok", "message": "Welcome to the Market Simulator API!"}
 
 @app.post("/simulation/reset")
 def reset_simulation():
-    """Resets the simulation to its initial state."""
-    global order_book, matching_engine, trades_log
+    global order_book, matching_engine, trades_log, agents
     order_book = OrderBook()
     matching_engine = MatchingEngine(order_book)
     trades_log = []
+    # Reset to a default set of agents
+    agents = [
+        LiquidityProvider(agent_id=1),
+        NoiseTrader(agent_id=2),
+        MarketTaker(agent_id=3),
+    ]
     return {"message": "Simulation reset successfully."}
+    
+@app.get("/agents")
+def get_agents():
+    """Returns the current list of agents in the simulation."""
+    return [{"agent_id": agent.agent_id, "type": type(agent).__name__} for agent in agents]
 
-@app.get("/data/book")
-def get_order_book():
-    """Returns the current state of the order book."""
-    return {"bids": order_book.bids, "asks": order_book.asks}
+@app.post("/agents")
+def add_agents(config: AgentConfig):
+    """Adds one or more new agents to the simulation."""
+    last_id = max([agent.agent_id for agent in agents]) if agents else 0
+    for i in range(config.count):
+        new_id = last_id + i + 1
+        if config.agent_type == "NoiseTrader":
+            agents.append(NoiseTrader(agent_id=new_id))
+        elif config.agent_type == "MarketTaker":
+            agents.append(MarketTaker(agent_id=new_id))
+        elif config.agent_type == "LiquidityProvider":
+            agents.append(LiquidityProvider(agent_id=new_id))
+        else:
+            return {"error": f"Invalid agent type: {config.agent_type}"}
+    return {"message": f"Added {config.count} {config.agent_type}(s)"}
 
-@app.get("/data/trades")
-def get_trades_log():
-    """Returns a log of all trades that have been executed."""
-    return trades_log
-
-@app.get("/data/price-history")
-def get_price_history():
-    """Returns a simplified list of {time, price} for charting."""
-    return [{"time": trade.timestamp, "price": trade.price} for trade in trades_log]
-
-@app.post("/simulation/step")
-def run_simulation_step():
-    """Runs a single step of the simulation."""
-    agent = random.choice(agents)
-    order = agent.act(order_book)
-    if not order:
-        return {"message": f"Agent {agent.agent_id} decided not to act."}
-    trades = matching_engine.process_order(order)
-    if trades:
-        trades_log.extend(trades)
-    return {"message": f"Agent {agent.agent_id} placed an order.", "order_placed": order, "trades_executed": trades}
+@app.delete("/agents/{agent_id}")
+def remove_agent(agent_id: int):
+    """Removes a specific agent from the simulation."""
+    global agents
+    initial_agent_count = len(agents)
+    # Create a new list containing all agents except the one with the specified ID
+    agents = [agent for agent in agents if agent.agent_id != agent_id]
+    
+    # If the list length hasn't changed, the agent wasn't found
+    if len(agents) == initial_agent_count:
+        raise HTTPException(status_code=404, detail=f"Agent with ID {agent_id} not found.")
+        
+    return {"message": f"Agent with ID {agent_id} removed."}
