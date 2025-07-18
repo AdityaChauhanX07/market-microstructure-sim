@@ -4,25 +4,29 @@ import axios from 'axios';
 import OrderBook from './OrderBook';
 import TradeLog from './TradeLog';
 import PriceChart from './PriceChart';
+import AgentManager from './AgentManager';
 
 function App() {
   const [orderBook, setOrderBook] = useState({ bids: [], asks: [] });
   const [trades, setTrades] = useState([]);
   const [priceHistory, setPriceHistory] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [isAutoRunning, setIsAutoRunning] = useState(false);
   
   const intervalRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const [bookRes, tradesRes, priceRes] = await Promise.all([
+      const [bookRes, tradesRes, priceRes, agentsRes] = await Promise.all([
         axios.get('http://localhost:8000/data/book'),
         axios.get('http://localhost:8000/data/trades'),
-        axios.get('http://localhost:8000/data/price-history')
+        axios.get('http://localhost:8000/data/price-history'),
+        axios.get('http://localhost:8000/agents')
       ]);
       setOrderBook(bookRes.data);
       setTrades(tradesRes.data);
       setPriceHistory(priceRes.data);
+      setAgents(agentsRes.data);
     } catch (error) {
       console.error("Error fetching data: ", error);
     }
@@ -72,6 +76,7 @@ function App() {
           Reset Simulation
         </button>
       </div>
+      <AgentManager agents={agents} onUpdate={fetchData} />
       <PriceChart data={priceHistory} />
       <OrderBook bids={orderBook.bids} asks={orderBook.asks} />
       <TradeLog trades={trades} />
