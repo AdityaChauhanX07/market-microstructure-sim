@@ -14,7 +14,7 @@ import AgentPnL from './AgentPnL';
 import MetricsDashboard from './MetricsDashboard';
 import { Button } from './components/ui/button';
 
-const MAX_TRADES_IN_STATE = 100; // Cap the number of trades we keep in the UI state
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function App() {
   const [trades, setTrades] = useState([]);
@@ -31,45 +31,35 @@ function App() {
   
   const lastPriceRef = useRef(null);
   const intervalRef = useRef(null);
-  const lastToastTimeRef = useRef(0); // For rate-limiting toasts
 
   const fetchData = useCallback(async () => {
     try {
       const [tradesRes, pnlRes, depthRes, graphRes, metricsRes, candleRes, priceHistoryRes] = await Promise.all([
-        axios.get('http://localhost:8000/data/trades'),
-        axios.get('http://localhost:8000/agents/pnl'),
-        axios.get('http://localhost:8000/data/book/depth'),
-        axios.get('http://localhost:8000/data/agent-interactions'),
-        axios.get('http://localhost:8000/data/market-metrics'),
-        axios.get('http://localhost:8000/data/candlestick'),
-        axios.get('http://localhost:8000/data/price-history')
+        axios.get(`${API_URL}/data/trades`),
+        axios.get(`${API_URL}/agents/pnl`),
+        axios.get(`${API_URL}/data/book/depth`),
+        axios.get(`${API_URL}/data/agent-interactions`),
+        axios.get(`${API_URL}/data/market-metrics`),
+        axios.get(`${API_URL}/data/candlestick`),
+        axios.get(`${API_URL}/data/price-history`)
       ]);
 
       const newTrades = tradesRes.data;
       const newPriceHistory = priceHistoryRes.data;
       const newMetrics = metricsRes.data;
 
-      // Limit the trades array to prevent memory leak
-      setTrades(newTrades.slice(-MAX_TRADES_IN_STATE));
-
-      // Play sound and show toast for the latest trade only, and rate-limit toasts
-      const now = Date.now();
-      if (newTrades.length > 0 && now - lastToastTimeRef.current > 500) { // Only toast every 500ms
-        const latestTrade = newTrades[newTrades.length - 1];
-        if (soundManager.isStarted) {
-          soundManager.playTradeSound(latestTrade.side);
-        }
-        const side = latestTrade.side.charAt(0).toUpperCase() + latestTrade.side.slice(1);
-        toast.success(
-          `${side} executed: ${latestTrade.quantity} @ ${latestTrade.price.toFixed(2)}`,
-          {
-            iconTheme: { primary: latestTrade.side === 'buy' ? '#22c55e' : '#ef4444', secondary: '#fff' },
-            style: { background: '#1f2937', color: '#e5e7eb', border: '1px solid #4b5563' },
+      setTrades(prevTrades => {
+        if (newTrades.length > prevTrades.length) {
+          const newlyExecutedTrades = newTrades.slice(prevTrades.length);
+          if (soundManager.isStarted) {
+            newlyExecutedTrades.forEach(trade => soundManager.playTradeSound(trade.side));
           }
-        );
-        lastToastTimeRef.current = now;
-      }
-
+          const latestTrade = newTrades[newTrades.length-1];
+          const side = latestTrade.side.charAt(0).toUpperCase() + latestTrade.side.slice(1);
+          toast.success(`${side} executed: ${latestTrade.quantity} @ ${latestTrade.price.toFixed(2)}`);
+        }
+        return newTrades.slice(-100); // Keep only last 100 trades
+      });
 
       if (newPriceHistory.length > 0) {
         const currentPrice = newPriceHistory[newPriceHistory.length - 1].price;
@@ -93,21 +83,24 @@ function App() {
       setPriceHistory(newPriceHistory);
     } catch (error) {
       console.error("Error fetching data: ", error);
+      // Stop auto-run on error
+      setIsAutoRunning(false);
     }
   }, []);
 
   const handleStep = useCallback(async (count = 1) => {
     try {
-      await axios.post('http://localhost:8000/simulation/step', { count: count });
+      await axios.post(`${API_URL}/simulation/step`, { count: count });
       fetchData();
     } catch (error) {
       console.error("Error running simulation step: ", error);
+      setIsAutoRunning(false);
     }
   }, [fetchData]);
   
   const handleReset = async () => {
     try {
-      await axios.post('http://localhost:8000/simulation/reset');
+      await axios.post(`${API_URL}/simulation/reset`);
       lastPriceRef.current = null;
       setPriceDirection('neutral');
       toast.error('Simulation Reset');
