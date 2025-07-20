@@ -5,21 +5,33 @@ class OrderBook:
 
     def __init__(self):
         """Initializes empty lists for bids and asks."""
-        # Bids: list of buy orders
         self.bids: list[Order] = []
-        # Asks: list of sell orders
         self.asks: list[Order] = []
 
     def add_order(self, order: Order):
         """Adds a limit order to the book and sorts it by price-time priority."""
         if order.side == "buy":
             self.bids.append(order)
-            # Sort bids: highest price first, then earliest time first
             self.bids.sort(key=lambda o: (-o.price, o.timestamp))
         else:  # 'sell'
             self.asks.append(order)
-            # Sort asks: lowest price first, then earliest time first
             self.asks.sort(key=lambda o: (o.price, o.timestamp))
+
+    def cancel_order(self, order_id: int) -> bool:
+        """Removes an order from the book given its ID."""
+        # Search bids
+        for i, order in enumerate(self.bids):
+            if order.order_id == order_id:
+                del self.bids[i]
+                return True
+        
+        # Search asks
+        for i, order in enumerate(self.asks):
+            if order.order_id == order_id:
+                del self.asks[i]
+                return True
+        
+        return False # Order not found
 
     def get_best_bid(self) -> float | None:
         """Returns the highest bid price, or None if no bids exist."""

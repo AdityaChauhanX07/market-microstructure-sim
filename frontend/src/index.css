@@ -1,13 +1,180 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    /* ... other colors ... */
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    /* ... */
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    /* ... */
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    /* ... */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    /* ... */
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    /* ... */
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    /* ... */
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* ... dark theme colors ... */
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* --- New Glow Animation --- */
+@keyframes glow {
+  0% { box-shadow: 0 0 5px #fde047, 0 0 10px #fde047; }
+  50% { box-shadow: 0 0 20px #fde047, 0 0 30px #fde047; }
+  100% { box-shadow: 0 0 5px #fde047, 0 0 10px #fde047; }
+}
+
+.trade-glow {
+  animation: glow 1s ease-in-out;
+  border-radius: 5px;
+}
+
+/* --- Animated Orb Background --- */
+@keyframes moveOrb {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30vw, 20vh) scale(1.2);
+  }
+  50% {
+    transform: translate(10vw, 40vh) scale(0.9);
+  }
+  75% {
+    transform: translate(40vw, -10vh) scale(1.1);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+.orb {
+  position: absolute;
+  width: 40rem;
+  height: 40rem;
+  border-radius: 9999px;
+  filter: blur(100px);
+  opacity: 0.15;
+}
+
+.orb1 {
+  top: -20rem;
+  left: -20rem;
+  background-color: #60a5fa; /* Tailwind's blue-400 */
+  animation: moveOrb 20s infinite alternate;
+}
+
+.orb2 {
+  bottom: -20rem;
+  right: -20rem;
+  background-color: #c084fc; /* Tailwind's purple-400 */
+  animation: moveOrb 25s infinite alternate-reverse;
+}
+
+
+/* --- Custom Shimmer Slider --- */
+@keyframes shimmer {
+  0% {
+    background-position: -500px 0;
+  }
+  100% {
+    background-position: 500px 0;
+  }
+}
+
+.custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Track */
+.custom-slider::-webkit-slider-runnable-track {
+  background-color: #374151; /* gray-700 */
+  height: 0.5rem;
+  border-radius: 0.5rem;
+  background-image: linear-gradient(to right, #374151 0%, #a78bfa 50%, #374151 100%);
+  background-repeat: no-repeat;
+  background-size: 100px 100%;
+  animation: shimmer 2s linear infinite;
+}
+.custom-slider::-moz-range-track {
+  background-color: #374151;
+  height: 0.5rem;
+  border-radius: 0.5rem;
+  /* Shimmer effect is harder to do for Firefox track, skipping for simplicity */
+}
+
+/* Thumb */
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -4px; /* Vertically center thumb */
+  height: 20px;
+  width: 20px;
+  background-color: #c084fc; /* purple-400 */
+  border-radius: 9999px;
+  border: 2px solid #f0f0f0;
+  box-shadow: 0 0 10px #c084fc, 0 0 20px #c084fc;
+  transition: box-shadow 0.2s ease-in-out;
+}
+.custom-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 15px #c084fc, 0 0 30px #c084fc;
+}
+.custom-slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  background-color: #c084fc;
+  border-radius: 9999px;
+  border: 2px solid #f0f0f0;
+  box-shadow: 0 0 10px #c084fc, 0 0 20px #c084fc;
+  transition: box-shadow 0.2s ease-in-out;
+}
+.custom-slider::-moz-range-thumb:hover {
+  box-shadow: 0 0 15px #c084fc, 0 0 30px #c084fc;
+}
+
+/* --- Pulsing Status Indicator --- */
+@keyframes pulse-green {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+.pulse-animate {
+  animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
